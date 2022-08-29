@@ -21,7 +21,7 @@ end)
 tab:Toggle("Auto Rebirth",false, function(t)
     getgenv().autoRebirth = t
 
-    while getgenv().autoRebirth != == true do wait()
+    while getgenv().autoRebirth == true do wait()
         local args = {
             [1] = {}
         }
