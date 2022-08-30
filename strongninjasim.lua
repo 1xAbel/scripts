@@ -32,6 +32,20 @@ tab:Toggle("Auto Rebirth",false, function(t)
     end
 end)
 
+tab:Toggle('Auto Equip Best Pets',false, function(t)
+    getgenv().autoEquip = t
+    
+    while getgenv().autoEquip == true do wait()
+        local args = {
+    [1] = {}
+    }
+    
+    game:GetService("ReplicatedStorage").Framework.Modules.Shared.Internal.Modules:FindFirstChild("2 | Network").Remotes.s_pets_bestpets:FireServer(unpack(args))
+    wait(4.25)
+    end
+end)
+
+
 local teleport = win:Tab('Teleports')
 
 teleport:Button("Beach", function()
