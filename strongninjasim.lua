@@ -41,7 +41,7 @@ tab:Toggle('Auto Equip Best Pets',false, function(t)
     }
     
     game:GetService("ReplicatedStorage").Framework.Modules.Shared.Internal.Modules:FindFirstChild("2 | Network").Remotes.s_pets_bestpets:FireServer(unpack(args))
-    wait(4.25)
+    wait(10.5)
     end
 end)
 
@@ -67,7 +67,7 @@ teleport:Button("Alien", function()
     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-819.4315795898438, 0.4211675226688385, -563.2957763671875)
 end)
 
-local misc = win:Tab('misc')
+local misc = win:Tab('Misc')
 
 misc:Toggle('Boost Fps',false, function(t)
     getgenv().boostfps = t
@@ -80,4 +80,12 @@ misc:Toggle('Boost Fps',false, function(t)
 end)
 misc:Button("Rejon", function()
     game:GetService('TeleportService'):TeleportToPlaceInstance(game.PlaceId, game.JobId)
+end)
+
+local discord = win:Tab('Credits')
+
+discord:Label("Scripter: abel#0002")
+discord:Button("Copy Discord Invite", function()
+    lib:Notification("Notification", "Discord Invite Successfully Copy Discord Invite", "Thank You!")
+    setclipboard('https://discord.gg/grWfPQ7fky')
 end)
