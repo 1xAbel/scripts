@@ -3,12 +3,14 @@ if game:GetService("CoreGui"):FindFirstChild("ui") then
 end
 
 local vu = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
 
 local lib = loadstring(game:HttpGet"https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt")()
 
 local win = lib:Window("Strong Ninja Simulator | abels script",Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 local tab = win:Tab("Main")
+
 
 tab:Toggle("Auto Swing",false, function(t)
     getgenv().autoSwing = t
@@ -49,4 +51,19 @@ teleport:Button("Marine", function()
 end)
 teleport:Button("Alien", function()
     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-819.4315795898438, 0.4211675226688385, -563.2957763671875)
+end)
+
+local misc = win:Tab('misc')
+
+misc:Toggle('Boost Fps',false, function(t)
+    getgenv().boostfps = t
+    RunService:Set3dRenderingEnabled(false)
+    setfpscap(15)
+    if getgenv().boostfps == false then
+    RunService:Set3dRenderingEnabled(true)
+    setfpscap(220)
+    end
+end)
+misc:Button("Rejon", function()
+    game:GetService('TeleportService'):TeleportToPlaceInstance(game.PlaceId, game.JobId)
 end)
