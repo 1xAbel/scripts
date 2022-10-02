@@ -45,7 +45,7 @@ end)
 
 local EggsSection = Main:AddSection("Pets", {default = false})
 
-local Dropdown = EggsSection:AddDropdown("Select Egg", {"Starter", "Wood Egg", "Jungle Egg", "Forest Egg", "Bee Egg", "Swamp Egg", "55M Egg"}, {default = "nil"}, function(selected)
+local Dropdown = EggsSection:AddDropdown("Select Egg", {"Starter", "Wood Egg", "Jungle Egg", "Forest Egg", "Bee Egg", "Snow Egg", "Desert Egg", "Death Egg", "Beach Egg", "Mines Egg", "Cloud Egg", "Coral Egg", "Darkheart Egg", "Flameslands Egg", "Swamp Egg", "55M Egg"}, {default = "nil"}, function(selected)
 	getgenv().eggtype = selected
 end)
 
