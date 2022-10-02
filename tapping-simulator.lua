@@ -62,3 +62,14 @@ local Toggle = EggsSection:AddToggle("Auto Hatch", {flag = "Toggle_Flag", defaul
 		game:GetService("ReplicatedStorage").Events.HatchEgg:InvokeServer(unpack(args))
 	end
 end)
+
+local Credits = Window:AddTab("Credits", {default = false})
+
+local Credits = Credits:AddSection("Credits", {default = false})
+
+local DualLabel = Credits:AddDualLabel({"Scripter:", "abel#0001"})
+local DualLabel = Credits:AddDualLabel({"Teacher:", "LioK..!#4205"})
+local DualLabel = Credits:AddDualLabel({"UI Library:", "RegularVynixu"})
+local ClipboardLabel = Credits:AddClipboardLabel("Copy Discord Invite", function()
+	return "discord.gg/grWfPQ7fky"
+end)
