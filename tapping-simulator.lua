@@ -27,7 +27,7 @@ local Toggle = MainSection:AddToggle("Auto Tap", {flag = "Toggle_Flag", default 
 	end
 end)
 
-local Dropdown = MainSection:AddDropdown("Rebirth amount", {"1", "5", "10", "20", "100"}, {default = "nil"}, function(selected)
+local Dropdown = MainSection:AddDropdown("Rebirth amount", {"1", "5", "10", "20", "100", "500", "4000"}, {default = "nil"}, function(selected)
 	getgenv().rebirthamount = selected
 end)
 
