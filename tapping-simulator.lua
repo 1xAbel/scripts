@@ -45,7 +45,7 @@ end)
 
 local EggsSection = Main:AddSection("Pets", {default = false})
 
-local Dropdown = EggsSection:AddDropdown("Select Egg", {"Starter", "Wood Egg", "Jungle Egg", "Forest Egg", "Bee Egg", "Snow Egg", "Desert Egg", "Death Egg", "Beach Egg", "Mine Egg", "Cloud Egg", "Coral Egg", "Darkheart Egg", "Flameslands Egg", "Swamp Egg", "55M Egg"}, {default = "nil"}, function(selected)
+local Dropdown = EggsSection:AddDropdown("Select Egg", {"Starter", "Wood Egg", "Jungle Egg", "Forest Egg", "Bee Egg", "Snow Egg", "Desert Egg", "Death Egg", "Beach Egg", "Mines Egg", "Cloud Egg", "Coral Egg", "Darkheart Egg", "Flameslands Egg", "Swamp Egg", "55M Egg"}, {default = "nil"}, function(selected)
 	getgenv().eggtype = selected
 end)
 
@@ -70,6 +70,22 @@ local Credits = Credits:AddSection("Credits", {default = false})
 local DualLabel = Credits:AddDualLabel({"Scripter:", "abel#0001"})
 local DualLabel = Credits:AddDualLabel({"Teacher:", "LioK..!#4205"})
 local DualLabel = Credits:AddDualLabel({"UI Library:", "RegularVynixu"})
-local ClipboardLabel = Credits:AddClipboardLabel("Copy Discord Invite", function()
-	return "discord.gg/grWfPQ7fky"
+local Button = Credits:AddButton("Join Discord", function()
+	syn.request(
+   {
+       Url = "http://127.0.0.1:6463/rpc?v=1",
+       Method = "POST",
+       Headers = {
+           ["Content-Type"] = "application/json",
+           ["origin"] = "https://discord.com",
+       },
+       Body = game:GetService("HttpService"):JSONEncode(
+           {
+               ["args"] = {
+                   ["code"] = "grWfPQ7fky",
+               },
+               ["cmd"] = "INVITE_BROWSER",
+               ["nonce"] = "."
+           })
+   })
 end)
