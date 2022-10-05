@@ -16,7 +16,7 @@ tab:Toggle("Auto Swing",false, function(t)
     getgenv().autoSwing = t
 
     while getgenv().autoSwing == true do task.wait()
-        vu:ClickButton1(Vector2.new(907,610))
+        vu:ClickButton1(Vector2.new(9e9,9e9))
     end
 end)
 
