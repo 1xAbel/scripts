@@ -8,6 +8,7 @@ local games = {
     [{1499872953}] = "https://raw.githubusercontent.com/1xAbel/scripts/main/boku-no-roblox.lua",
     [{3956818381}] = "https://raw.githubusercontent.com/1xAbel/scripts/main/ninja-legends.lua",
     [{11468159863, 6152116144}] = "https://raw.githubusercontent.com/1xAbel/scripts/main/ProjectSlayers.lua",
+    [{11400511154}] = "https://raw.githubusercontent.com/1xAbel/scripts/main/Monkey-Tycoon.lua",
 }
 
 for ids, url in next, games do
