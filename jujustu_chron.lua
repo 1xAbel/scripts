@@ -234,6 +234,12 @@ local function collect4()
     end
 end
 
+local function collect5()
+    for i = 1, 1000 do -- Get Spins Any mount by change number (To use. use when u at the hold e thing then execute if too much u may crashes)
+        fireproximityprompt(workspace.Game_FX.Engagement_Ring.Meshes/YutaRingy_Torus.Collect)
+    end
+end
+
 ad1:AddToggle("Auto Use Skill Z", false, function(skillz_enabled)
     getgenv().skillz = skillz_enabled 
     
@@ -386,6 +392,22 @@ ad:AddToggle("Cursed Finger Farm", false, function(cursed_finger_farm_enabled)
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = v.Finger.CFrame
                 wait(0.1)
                 collect2()
+                wait(0.4)
+                lp.Character.HumanoidRootPart.CFrame = oldCframe
+            end
+        end
+    end         
+end)
+ad:AddToggle("Yutas Ring Farm", false, function(yuta_ring_farm_enabled)
+    getgenv().yuta_ring_farm = yuta_ring_farm_enabled
+
+    while yuta_ring_farm do wait()
+        for i,v in pairs(workspace.Game_FX:GetChildren()) do
+            if v:IsA("Model") and v.Name == "Engagement_Ring" and v:FindFirstChild("Meshes/YutaRingy_Cube") then
+                local oldCframe = lp.Character.HumanoidRootPart.CFrame
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = v["Meshes/YutaRingy_Torus"].CFrame
+                wait(0.1)
+                collect5()
                 wait(0.4)
                 lp.Character.HumanoidRootPart.CFrame = oldCframe
             end
