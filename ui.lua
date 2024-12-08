@@ -72,7 +72,6 @@ library.themes = {
     {
         name = 'Default',
         theme = {
-            font = Enum.Font.Code;
             ['Accent']                    = fromrgb(124,97,196);
             ['Background']                = fromrgb(17,17,17);
             ['Border']                    = fromrgb(0,0,0);
@@ -99,7 +98,6 @@ library.themes = {
     {
         name = 'Midnight',
         theme = {
-            font = Enum.Font.Code;
             ['Accent']                    = fromrgb(103,89,179);
             ['Background']                = fromrgb(22,22,31);
             ['Border']                    = fromrgb(0,0,0);
@@ -126,7 +124,6 @@ library.themes = {
     {
         name = 'Nekocheat',
         theme = {
-            font = Enum.Font.Code;
             ["Accent"]                    = fromrgb(226, 30, 112);
             ["Background"]                = fromrgb(18,18,18);
             ["Border"]                    = fromrgb(0,0,0);
@@ -153,7 +150,6 @@ library.themes = {
     {
         name = 'Nekocheat Blue',
         theme = {
-            font = Enum.Font.Code;
             ["Accent"]                    = fromrgb(0, 247, 255);
             ["Background"]                = fromrgb(18,18,18);
             ["Border"]                    = fromrgb(0,0,0);
@@ -180,7 +176,6 @@ library.themes = {
     {
         name = 'Fatality',
         theme = {
-            font = Enum.Font.Code;
             ['Accent']                    = fromrgb(197,7,83);
             ['Background']                = fromrgb(25,19,53);
             ['Border']                    = fromrgb(0,0,0);
@@ -207,7 +202,6 @@ library.themes = {
     {
         name = 'Gamesense',
         theme = {
-            font = Enum.Font.Code;
             ['Accent']                    = fromrgb(147,184,26);
             ['Background']                = fromrgb(17,17,17);
             ['Border']                    = fromrgb(0,0,0);
@@ -234,7 +228,6 @@ library.themes = {
     {
         name = 'Twitch',
         theme = {
-            font = Enum.Font.Code;
             ['Accent']                    = fromrgb(169,112,255);
             ['Background']                = fromrgb(14,14,14);
             ['Border']                    = fromrgb(0,0,0);
@@ -529,7 +522,7 @@ do
                     end
                 elseif i == 'Visible' then
                     drawing.Visible = v
-                elseif i == 'Font' and v == 2 and executor == 'ScriptWare' then
+                elseif i == '"Code"' and v == 2 and executor == 'ScriptWare' then
                     v = 1
                 end
 
@@ -723,7 +716,7 @@ function library:init()
     end
 
     local screenGui = Instance.new('ScreenGui');
-    if protect_gui then protect_gui(screenGui); end
+    if syn then syn.protect_gui(screenGui); end
     screenGui.Parent = game:GetService('CoreGui');
     screenGui.Enabled = true;
     utility:Instance('ImageButton', {
@@ -937,8 +930,7 @@ function library:init()
                 ThemeColor = 'Primary Text';
                 Text = message;
                 Outline = true;
-                Enum.Font.Code
-                Font = 2;
+                "Code" = 2;
                 Size = 13;
                 ZIndex = z+4;
                 Parent = notification.background;
@@ -1034,8 +1026,7 @@ function library:init()
                 ThemeColor = 'Primary Text';
                 Text = indicator.title;
                 Size = 13;
-                Enum.Font.Code
-                Font = 2;
+                "Code" = 2;
                 ZIndex = z+2;
                 Center = true;
                 Outline = true;
@@ -1116,8 +1107,7 @@ function library:init()
                     Position = newUDim2(0,3,0,1);
                     ThemeColor = 'Option Text 2';
                     Size = 13;
-                    Enum.Font.Code
-                    Font = 2;
+                    "Code" = 2;
                     ZIndex = z+2;
                     Outline = true;
                     Parent = objs.background;
@@ -1127,8 +1117,7 @@ function library:init()
                     Position = newUDim2(0,0,0,1);
                     ThemeColor = 'Option Text 2';
                     Size = 13;
-                    Enum.Font.Code
-                    Font = 2;
+                    "Code" = 2;
                     ZIndex = z+2;
                     Outline = true;
                     Parent = objs.background;
@@ -1290,8 +1279,7 @@ function library:init()
                 Position = newUDim2(0,7,0,2);
                 ThemeColor = 'Primary Text';
                 Text = window.title;
-                Enum.Font.Code
-                Font = 2;
+                "Code" = 2;
                 Size = 13;
                 ZIndex = z+1;
                 Outline = true;
@@ -1424,8 +1412,7 @@ function library:init()
                     Text = 'colorpicker_status_text';
                     ThemeColor = 'Option Text 1';
                     Size = 13;
-                    Enum.Font.Code
-                    Font = 2;
+                    "Code" = 2;
                     Outline = true;
                     ZIndex = z+1;
                     Parent = objs.background;
@@ -1588,8 +1575,7 @@ function library:init()
                     Color = c3new(1,.1,.1);
                     Text = 'R';
                     Size = 13;
-                    Enum.Font.Code
-                    Font = 2;
+                    "Code" = 2;
                     Outline = true;
                     Center = true;
                     ZIndex = z+6;
@@ -1617,8 +1603,7 @@ function library:init()
                     Color = c3new(.1,1,.1);
                     Text = 'G';
                     Size = 13;
-                    Enum.Font.Code
-                    Font = 2;
+                    "Code" = 2;
                     Outline = true;
                     Center = true;
                     ZIndex = z+6;
@@ -1646,8 +1631,7 @@ function library:init()
                     Color = c3new(.1,.1,1);
                     Text = 'B';
                     Size = 13;
-                    Enum.Font.Code
-                    Font = 2;
+                    "Code" = 2;
                     Outline = true;
                     Center = true;
                     ZIndex = z+6;
@@ -1814,8 +1798,7 @@ function library:init()
                                 ThemeColor = 'Option Text 2';
                                 Text = tostring(value);
                                 Size = 13;
-                                Enum.Font.Code
-                                Font = 2;
+                                "Code" = 2;
                                 ZIndex = library.zindexOrder.dropdown+2;
                                 Parent = valueObject.background;
                             })
@@ -1984,8 +1967,7 @@ function library:init()
                     ThemeColor = 'Unselected Tab Text';
                     Text = text;
                     Size = 13;
-                    Enum.Font.Code
-                    Font = 2;
+                    "Code" = 2;
                     ZIndex = z+1;
                     Outline = true;
                     Center = true;
@@ -2056,8 +2038,7 @@ function library:init()
                         Position = newUDim2(.0425,0,0,-7);
                         ThemeColor = 'Primary Text';
                         Size = 13;
-                        Enum.Font.Code
-                        Font = 2;
+                        "Code" = 2;
                         ZIndex = z+1;
                         Parent = objs.background;
                     })
@@ -2186,8 +2167,7 @@ function library:init()
                             Position = newUDim2(0,19,0,1);
                             ThemeColor = 'Option Text 3';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+1;
                             Outline = true;
                             Parent = objs.holder;
@@ -2463,8 +2443,7 @@ function library:init()
                             objs.keyText = utility:Draw('Text', {
                                 ThemeColor = 'Option Text 3';
                                 Size = 13;
-                                Enum.Font.Code
-                                Font = 2;
+                                "Code" = 2;
                                 ZIndex = z+1;
                                 Parent = objs.holder;
                             })
@@ -2682,8 +2661,7 @@ function library:init()
                                 Position = newUDim2(.5,0,0,-1);
                                 ThemeColor = 'Option Text 3';
                                 Size = 13;
-                                Enum.Font.Code
-                                Font = 2;
+                                "Code" = 2;
                                 ZIndex = z+5;
                                 Outline = true;
                                 Center = true;
@@ -2855,8 +2833,7 @@ function library:init()
                                 ThemeColor = 'Option Text 2';
                                 Text = 'none',
                                 Size = 13;
-                                Enum.Font.Code
-                                Font = 2;
+                                "Code" = 2;
                                 ZIndex = z+5;
                                 Outline = true;
                                 Parent = objs.background;
@@ -2867,8 +2844,7 @@ function library:init()
                                 ThemeColor = 'Option Text 3';
                                 Text = '+';
                                 Size = 13;
-                                Enum.Font.Code
-                                Font = 2;
+                                "Code" = 2;
                                 ZIndex = z+5;
                                 Outline = true;
                                 Parent = objs.background;
@@ -3059,8 +3035,7 @@ function library:init()
                             Position = newUDim2(0,2,0,1);
                             ThemeColor = 'Option Text 3';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+1;
                             Outline = true;
                             Parent = objs.holder;
@@ -3087,8 +3062,7 @@ function library:init()
                             ThemeColor = 'Option Text 3';
                             Text = '+';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+4;
                             Center = true;
                             Outline = true;
@@ -3100,8 +3074,7 @@ function library:init()
                             ThemeColor = 'Option Text 3';
                             Text = '-';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+4;
                             Center = true;
                             Outline = true;
@@ -3292,8 +3265,7 @@ function library:init()
                             Position = newUDim2(.5,0,0,0);
                             ThemeColor = 'Option Text 3';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+4;
                             Outline = true;
                             Center = true;
@@ -3428,8 +3400,7 @@ function library:init()
                                 Position = newUDim2(.5,0,0,0);
                                 ThemeColor = 'Option Text 3';
                                 Size = 13;
-                                Enum.Font.Code
-                                Font = 2;
+                                "Code" = 2;
                                 ZIndex = z+4;
                                 Outline = true;
                                 Center = true;
@@ -3593,9 +3564,7 @@ function library:init()
                             Position = newUDim2(.5,0,0,1);
                             ThemeColor = 'Option Text 2';
                             Size = 13;
-                            Enum.Font.Code
-                        
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z;
                             Outline = true;
                             Center = true;
@@ -3700,8 +3669,7 @@ function library:init()
                             Position = newUDim2(0,2,0,2);
                             ThemeColor = color.risky and 'Risky Text Enabled' or 'Option Text 3';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+1;
                             Outline = true;
                             Parent = objs.holder;
@@ -3862,8 +3830,7 @@ function library:init()
                             Position = newUDim2(0,2,0,2);
                             ThemeColor = box.risky and 'Risky Text Enabled' or 'Option Text 2';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+1;
                             Outline = true;
                             Parent = objs.holder;
@@ -3873,8 +3840,7 @@ function library:init()
                             Position = newUDim2(0,2,0,0);
                             ThemeColor = 'Option Text 2';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+5;
                             Outline = true;
                             Parent = objs.background;
@@ -4060,8 +4026,7 @@ function library:init()
                             Position = newUDim2(0,2,0,2);
                             ThemeColor = bind.risky and 'Risky Text' or 'Option Text 2';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+1;
                             Outline = true;
                             Parent = objs.holder;
@@ -4070,8 +4035,7 @@ function library:init()
                         objs.keyText = utility:Draw('Text', {
                             ThemeColor = 'Option Text 3';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+1;
                             Parent = objs.holder;
                         })
@@ -4264,8 +4228,7 @@ function library:init()
                             Position = newUDim2(0,2,0,2);
                             ThemeColor = list.risky and 'Risky Text Enabled' or 'Option Text 2';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+1;
                             Outline = true;
                             Parent = objs.holder;
@@ -4276,8 +4239,7 @@ function library:init()
                             ThemeColor = 'Option Text 2';
                             Text = 'none',
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+5;
                             Outline = true;
                             Parent = objs.background;
@@ -4288,8 +4250,7 @@ function library:init()
                             ThemeColor = 'Option Text 3';
                             Text = '+';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+5;
                             Outline = true;
                             Parent = objs.background;
@@ -4432,8 +4393,7 @@ function library:init()
                             Position = newUDim2(0,2,0,2);
                             ThemeColor = text.risky and 'Risky Text Enabled' or 'Option Text 2';
                             Size = 13;
-                            Enum.Font.Code
-                            Font = 2;
+                            "Code" = 2;
                             ZIndex = z+1;
                             Outline = true;
                             Parent = objs.holder;
@@ -4580,8 +4540,7 @@ function library:init()
             Position = UDim2.new(0,3,0,0);
             ThemeColor = 'Primary Text';
             Size = 13;
-            Enum.Font.Code
-            Font = 2;
+            "Code" = 2;
             ZIndex = z+1;
             Outline = true;
             Parent = tooltipObjects.background;
@@ -4592,8 +4551,7 @@ function library:init()
             ThemeColor = 'Risky Text Enabled';
             Text = '[RISKY]';
             Size = 13;
-            Enum.Font.Code
-            Font = 2;
+            "Code" = 2;
             ZIndex = z+1;
             Outline = true;
             Parent = tooltipObjects.background;
@@ -4703,8 +4661,7 @@ function library:init()
                 ThemeColor = 'Primary Text';
                 Text = 'Watermark Text';
                 Size = 13;
-                Enum.Font.Code
-                Font = 2;
+                "Code" = 2;
                 ZIndex = z+1;
                 Outline = true;
                 Center = true;
