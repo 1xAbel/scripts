@@ -72,7 +72,7 @@ library.themes = {
     {
         name = 'Default',
         theme = {
-            font = Enum.Font.Code
+            font = Enum.Font.Code;
             ['Accent']                    = fromrgb(124,97,196);
             ['Background']                = fromrgb(17,17,17);
             ['Border']                    = fromrgb(0,0,0);
@@ -99,7 +99,7 @@ library.themes = {
     {
         name = 'Midnight',
         theme = {
-            font = Enum.Font.Code
+            font = Enum.Font.Code;
             ['Accent']                    = fromrgb(103,89,179);
             ['Background']                = fromrgb(22,22,31);
             ['Border']                    = fromrgb(0,0,0);
@@ -126,7 +126,7 @@ library.themes = {
     {
         name = 'Nekocheat',
         theme = {
-            font = Enum.Font.Code
+            font = Enum.Font.Code;
             ["Accent"]                    = fromrgb(226, 30, 112);
             ["Background"]                = fromrgb(18,18,18);
             ["Border"]                    = fromrgb(0,0,0);
@@ -153,7 +153,7 @@ library.themes = {
     {
         name = 'Nekocheat Blue',
         theme = {
-            font = Enum.Font.Code
+            font = Enum.Font.Code;
             ["Accent"]                    = fromrgb(0, 247, 255);
             ["Background"]                = fromrgb(18,18,18);
             ["Border"]                    = fromrgb(0,0,0);
@@ -180,7 +180,7 @@ library.themes = {
     {
         name = 'Fatality',
         theme = {
-            font = Enum.Font.Code
+            font = Enum.Font.Code;
             ['Accent']                    = fromrgb(197,7,83);
             ['Background']                = fromrgb(25,19,53);
             ['Border']                    = fromrgb(0,0,0);
@@ -207,7 +207,7 @@ library.themes = {
     {
         name = 'Gamesense',
         theme = {
-            font = Enum.Font.Code
+            font = Enum.Font.Code;
             ['Accent']                    = fromrgb(147,184,26);
             ['Background']                = fromrgb(17,17,17);
             ['Border']                    = fromrgb(0,0,0);
@@ -234,7 +234,7 @@ library.themes = {
     {
         name = 'Twitch',
         theme = {
-            font = Enum.Font.Code
+            font = Enum.Font.Code;
             ['Accent']                    = fromrgb(169,112,255);
             ['Background']                = fromrgb(14,14,14);
             ['Border']                    = fromrgb(0,0,0);
