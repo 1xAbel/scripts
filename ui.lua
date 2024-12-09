@@ -72,7 +72,6 @@ library.themes = {
     {
         name = 'Default',
         theme = {
-            ['Font'] = Enum.Font.Code;
             ['Accent']                    = fromrgb(124,97,196);
             ['Background']                = fromrgb(17,17,17);
             ['Border']                    = fromrgb(0,0,0);
