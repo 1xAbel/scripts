@@ -22,7 +22,7 @@ library.theme = {
     fontsize = 15,
     titlesize = 18,
     font = Enum.Font.Code,
-    background = "rbxassetid://0",
+    background = "rbxassetid://5553946656",
     tilesize = 90,
     cursor = false,
     cursorimg = "https://t0.rbxcdn.com/42f66da98c40252ee151326a82aab51f",
@@ -3400,10 +3400,33 @@ function library:CreateWindow(name, size, hidebutton)
         function tab:CreateConfigSystem(side)
             local configSystem = { }
 
-            configSystem.configFolder = window.name .. "/" .. tostring(game.PlaceId)
-            if (not isfolder(configSystem.configFolder)) then
-                makefolder(configSystem.configFolder)
+            local function sanitizeFolderName(name)
+                return name:gsub("[^%w_%s%-%.]", "_") -- Replace invalid characters with underscores
             end
+
+            configSystem.configFolder = sanitizeFolderName(window.name) .. "/" .. tostring(game.PlaceId)
+
+            -- Check if the folder exists; if not, create it
+            if not isfolder(configSystem.configFolder) then
+                local success, err = pcall(function()
+                    makefolder(configSystem.configFolder)
+                end)
+
+                -- Handle folder creation error
+                if not success then
+                    warn("Failed to create folder: " .. err)
+                end
+            end
+
+            print("Folder path:", configSystem.configFolder)
+            print("isfolder check:", isfolder(configSystem.configFolder))
+
+
+            if isfile(configSystem.configFolder) then
+                warn("A file with the same name as the intended folder exists!")
+            end
+            
+
 
             configSystem.sector = tab:CreateSector("Configs", side or "left")
 
