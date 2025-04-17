@@ -3412,9 +3412,10 @@ function library:CreateWindow(name, size, hidebutton)
 	    -- Create config folder path
 	    configSystem.configFolder = sanitizeFolderName(window.name) .. "/" .. tostring(game.PlaceId)
 	    
-	    -- Track current selection
+	    -- Track current selection and files
 	    local currentConfigSelection = ""
 	    local configFiles = {}
+	    local dropdownInitialized = false
 	    
 	    -- Ensure config folder exists
 	    local function ensureConfigFolder()
@@ -3436,10 +3437,8 @@ function library:CreateWindow(name, size, hidebutton)
 	        -- Optional: Add validation if needed
 	    end)
 	    
-	    -- Config dropdown - implementation varies by library
-	    local ConfigDropdown = configSystem.sector:AddDropdown("Configs", {}, "", function(value)
-	        currentConfigSelection = value
-	    end)
+	    -- Config dropdown - will be initialized in refreshDropdown
+	    local ConfigDropdown = nil
 	    
 	    -- Autoload path
 	    local autoLoadPath = configSystem.configFolder .. "/_autoload.json"
@@ -3464,38 +3463,38 @@ function library:CreateWindow(name, size, hidebutton)
 	            end
 	        end
 	        
+	        table.sort(files)
 	        return files
 	    end
 	    
-	    -- Refresh dropdown options
+	    -- Refresh dropdown options (safe version without RemoveElement)
 	    local function refreshDropdown()
 	        configFiles = getConfigFiles()
 	        
-	        -- Different UI libraries handle dropdowns differently
-	        -- Try common patterns:
-	        
-	        -- Pattern 1: SetOptions method
-	        if ConfigDropdown.SetOptions then
-	            ConfigDropdown:SetOptions(configFiles)
-	        
-	        -- Pattern 2: Clear and Add methods
-	        elseif ConfigDropdown.Clear and ConfigDropdown.Add then
-	            ConfigDropdown:Clear()
-	            for _, fileName in ipairs(configFiles) do
-	                ConfigDropdown:Add(fileName)
-	            end
-	        
-	        -- Pattern 3: Recreate dropdown
-	        else
-	            configSystem.sector:RemoveElement(ConfigDropdown)
+	        if not dropdownInitialized then
+	            -- First-time initialization
 	            ConfigDropdown = configSystem.sector:AddDropdown("Configs", configFiles, currentConfigSelection, function(value)
 	                currentConfigSelection = value
 	            end)
-	        end
-	        
-	        -- Restore selection if available
-	        if table.find(configFiles, currentConfigSelection) then
-	            if ConfigDropdown.Set then
+	            dropdownInitialized = true
+	        else
+	            -- Update existing dropdown
+	            if ConfigDropdown.SetOptions then
+	                -- Preferred method if available
+	                ConfigDropdown:SetOptions(configFiles)
+	            elseif ConfigDropdown.Clear and ConfigDropdown.Add then
+	                -- Alternative method
+	                ConfigDropdown:Clear()
+	                for _, fileName in ipairs(configFiles) do
+	                    ConfigDropdown:Add(fileName)
+	                end
+	            else
+	                -- Fallback - can't refresh, just update selection
+	                warn("Dropdown refresh not supported by this UI library")
+	            end
+	            
+	            -- Restore selection if available
+	            if table.find(configFiles, currentConfigSelection) and ConfigDropdown.Set then
 	                ConfigDropdown:Set(currentConfigSelection)
 	            end
 	        end
@@ -3686,7 +3685,7 @@ function library:CreateWindow(name, size, hidebutton)
 	        
 	        if loadConfig(autoLoadConfig) then
 	            currentConfigSelection = autoLoadConfig
-	            if ConfigDropdown.Set then
+	            if ConfigDropdown and ConfigDropdown.Set then
 	                ConfigDropdown:Set(autoLoadConfig)
 	            end
 	        end
@@ -3731,10 +3730,6 @@ function library:CreateWindow(name, size, hidebutton)
 	    
 	    return configSystem
 	end
-
-        table.insert(window.Tabs, tab)
-        return tab
-    end
 
     return window
 end
