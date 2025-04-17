@@ -3397,339 +3397,321 @@ function library:CreateWindow(name, size, hidebutton)
             return sector
         end
 
-	function tab:CreateConfigSystem(side)
-	    local configSystem = {}
-	    local httpService = game:GetService("HttpService")
-	    
-	    -- Sanitize folder names for safety
-	    local function sanitizeFolderName(name)
-	        if not name or type(name) ~= "string" then
-	            return "UnnamedConfig"
-	        end
-	        return name:gsub("[^%w_%s%-%.]", "_")
-	    end
-	    
-	    -- Create config folder path
-	    configSystem.configFolder = sanitizeFolderName(window.name) .. "/" .. tostring(game.PlaceId)
-	    
-	    -- Track current selection and files
-	    local currentConfigSelection = ""
-	    local configFiles = {}
-	    local dropdownInitialized = false
-	    
-	    -- Ensure config folder exists
-	    local function ensureConfigFolder()
-	        if not isfolder(configSystem.configFolder) then
-	            local success, err = pcall(makefolder, configSystem.configFolder)
-	            if not success then
-	                warn("Config folder creation failed:", err)
-	                return false
-	            end
-	        end
-	        return true
-	    end
-	    
-	    -- Create UI sector
-	    configSystem.sector = tab:CreateSector("Configs", side or "left")
-	    
-	    -- Config name input
-	    local ConfigNameBox = configSystem.sector:AddTextbox("Config Name", "", function(value)
-	        -- Optional: Add validation if needed
-	    end)
-	    
-	    -- Config dropdown - will be initialized in refreshDropdown
-	    local ConfigDropdown = nil
-	    
-	    -- Autoload path
-	    local autoLoadPath = configSystem.configFolder .. "/_autoload.json"
-	    
-	    -- Get list of config files
-	    local function getConfigFiles()
-	        local files = {}
-	        if not ensureConfigFolder() then return files end
-	        
-	        local success, listedFiles = pcall(listfiles, configSystem.configFolder)
-	        if not success then
-	            warn("Failed to list config files:", listedFiles)
-	            return files
-	        end
-	        
-	        for _, file in ipairs(listedFiles) do
-	            if file:match("%.json$") and not file:find("_autoload.json$") then
-	                local configName = file:match("([^\\/]+)%.json$")
-	                if configName then
-	                    table.insert(files, configName)
-	                end
-	            end
-	        end
-	        
-	        table.sort(files)
-	        return files
-	    end
-	    
-	    -- Refresh dropdown options (safe version without RemoveElement)
-	    local function refreshDropdown()
-	        configFiles = getConfigFiles()
-	        
-	        if not dropdownInitialized then
-	            -- First-time initialization
-	            ConfigDropdown = configSystem.sector:AddDropdown("Configs", configFiles, currentConfigSelection, function(value)
-	                currentConfigSelection = value
-	            end)
-	            dropdownInitialized = true
-	        else
-	            -- Update existing dropdown
-	            if ConfigDropdown.SetOptions then
-	                -- Preferred method if available
-	                ConfigDropdown:SetOptions(configFiles)
-	            elseif ConfigDropdown.Clear and ConfigDropdown.Add then
-	                -- Alternative method
-	                ConfigDropdown:Clear()
-	                for _, fileName in ipairs(configFiles) do
-	                    ConfigDropdown:Add(fileName)
-	                end
-	            else
-	                -- Fallback - can't refresh, just update selection
-	                warn("Dropdown refresh not supported by this UI library")
-	            end
-	            
-	            -- Restore selection if available
-	            if table.find(configFiles, currentConfigSelection) and ConfigDropdown.Set then
-	                ConfigDropdown:Set(currentConfigSelection)
-	            end
-	        end
-	    end
-	    
-	    -- Enhanced config serialization
-	    local function serializeConfig(data)
-	        local serialized = {
-	            _metadata = {
-	                version = 1,
-	                createdAt = os.time(),
-	                gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
-	            }
-	        }
-	        
-	        for key, val in pairs(data) do
-	            if val ~= nil then
-	                if typeof(val) == "Color3" then
-	                    serialized[key] = {_type = "Color3", r = val.R, g = val.G, b = val.B}
-	                elseif typeof(val) == "EnumItem" then
-	                    serialized[key] = {_type = "Enum", enumType = tostring(val):match("Enum%.(.-)%."), value = val.Name}
-	                elseif typeof(val) == "table" then
-	                    serialized[key] = {_type = "table", value = val}
-	                else
-	                    serialized[key] = val
-	                end
-	            end
-	        end
-	        
-	        return serialized
-	    end
-	    
-	    -- Enhanced config deserialization
-	    local function deserializeConfig(data)
-	        if not data then return nil end
-	        
-	        local deserialized = {}
-	        
-	        -- Handle legacy format (no _type markers)
-	        if not data._metadata then
-	            for key, val in pairs(data) do
-	                if type(val) == "table" and #val == 3 then
-	                    deserialized[key] = Color3.new(unpack(val))
-	                elseif type(val) == "string" and val:find("Enum.KeyCode.") then
-	                    deserialized[key] = Enum.KeyCode[val:gsub("Enum.KeyCode.", "")]
-	                else
-	                    deserialized[key] = val
-	                end
-	            end
-	            return deserialized
-	        end
-	        
-	        -- Handle new format
-	        for key, val in pairs(data) do
-	            if key ~= "_metadata" then
-	                if type(val) == "table" and val._type then
-	                    if val._type == "Color3" then
-	                        deserialized[key] = Color3.new(val.r, val.g, val.b)
-	                    elseif val._type == "Enum" and Enum[val.enumType] then
-	                        deserialized[key] = Enum[val.enumType][val.value]
-	                    elseif val._type == "table" then
-	                        deserialized[key] = val.value
-	                    end
-	                else
-	                    deserialized[key] = val
-	                end
-	            end
-	        end
-	        
-	        return deserialized
-	    end
-	    
-	    -- Save config to file
-	    local function saveConfig(configName)
-	        if not configName or configName == "" then
-	            warn("Config name cannot be empty")
-	            return false
-	        end
-	        
-	        if not ensureConfigFolder() then
-	            warn("Cannot save - config folder unavailable")
-	            return false
-	        end
-	        
-	        local filePath = configSystem.configFolder .. "/" .. configName .. ".json"
-	        local serialized = serializeConfig(library.flags)
-	        
-	        local success, json = pcall(httpService.JSONEncode, httpService, serialized)
-	        if not success then
-	            warn("Failed to serialize config:", json)
-	            return false
-	        end
-	        
-	        local success, err = pcall(writefile, filePath, json)
-	        if not success then
-	            warn("Failed to save config file:", err)
-	            return false
-	        end
-	        
-	        refreshDropdown()
-	        return true
-	    end
-	    
-	    -- Load config from file
-	    local function loadConfig(configName)
-	        if not configName or configName == "" then
-	            warn("No config selected")
-	            return false
-	        end
-	        
-	        local filePath = configSystem.configFolder .. "/" .. configName .. ".json"
-	        if not isfile(filePath) then
-	            warn("Config file does not exist")
-	            return false
-	        end
-	        
-	        local success, content = pcall(readfile, filePath)
-	        if not success then
-	            warn("Failed to read config file:", content)
-	            return false
-	        end
-	        
-	        local success, data = pcall(httpService.JSONDecode, httpService, content)
-	        if not success then
-	            warn("Failed to parse config JSON:", data)
-	            return false
-	        end
-	        
-	        local deserialized = deserializeConfig(data)
-	        if not deserialized then
-	            warn("Failed to deserialize config data")
-	            return false
-	        end
-	        
-	        -- Apply to UI elements
-	        for key, val in pairs(deserialized) do
-	            if library.flags[key] ~= nil then
-	                library.flags[key] = val
-	                
-	                -- Update UI elements
-	                for _, item in pairs(library.items) do
-	                    if item.flag == key then
-	                        pcall(function()
-	                            item:Set(val)
-	                        end)
-	                    end
-	                end
-	            end
-	        end
-	        
-	        return true
-	    end
-	    
-	    -- Delete config file
-	    local function deleteConfig(configName)
-	        if not configName or configName == "" then
-	            warn("No config selected")
-	            return false
-	        end
-	        
-	        local filePath = configSystem.configFolder .. "/" .. configName .. ".json"
-	        if not isfile(filePath) then
-	            warn("Config file does not exist")
-	            return false
-	        end
-	        
-	        local success, err = pcall(delfile, filePath)
-	        if not success then
-	            warn("Failed to delete config:", err)
-	            return false
-	        end
-	        
-	        -- Handle autoload if pointing to deleted config
-	        if isfile(autoLoadPath) and readfile(autoLoadPath) == configName then
-	            delfile(autoLoadPath)
-	        end
-	        
-	        refreshDropdown()
-	        return true
-	    end
-	    
-	    -- Handle autoload at startup
-	    local function handleAutoLoad()
-	        if not isfile(autoLoadPath) then return end
-	        
-	        local autoLoadConfig = readfile(autoLoadPath)
-	        if autoLoadConfig == "" then return end
-	        
-	        if loadConfig(autoLoadConfig) then
-	            currentConfigSelection = autoLoadConfig
-	            if ConfigDropdown and ConfigDropdown.Set then
-	                ConfigDropdown:Set(autoLoadConfig)
-	            end
-	        end
-	    end
-	    
-	    -- UI Buttons
-	    configSystem.Create = configSystem.sector:AddButton("Create", function()
-	        local configName = ConfigNameBox:Get()
-	        if saveConfig(configName) then
-	            ConfigNameBox:Set("")
-	        end
-	    end)
-	    
-	    configSystem.Save = configSystem.sector:AddButton("Save", function()
-	        saveConfig(currentConfigSelection)
-	    end)
-	    
-	    configSystem.Load = configSystem.sector:AddButton("Load", function()
-	        loadConfig(currentConfigSelection)
-	    end)
-	    
-	    configSystem.Delete = configSystem.sector:AddButton("Delete", function()
-	        deleteConfig(currentConfigSelection)
-	    end)
-	    
-	    -- Autoload toggle
-	    local AutoLoadToggle = configSystem.sector:AddToggle("Auto Load", isfile(autoLoadPath), function(enabled)
-	        if enabled then
-	            if currentConfigSelection ~= "" then
-	                writefile(autoLoadPath, currentConfigSelection)
-	            end
-	        else
-	            if isfile(autoLoadPath) then
-	                delfile(autoLoadPath)
-	            end
-	        end
-	    end)
-	    
-	    -- Initialize
-	    handleAutoLoad()
-	    refreshDropdown()
-	    
-	    return configSystem
-	end
+        function tab:CreateConfigSystem(side)
+            local configSystem = {}
+            local httpservice = game:GetService("HttpService")
+        
+            local function sanitizeFolderName(name)
+                return name:gsub("[^%w_%s%-%.]", "_")
+            end
+        
+            configSystem.configFolder = sanitizeFolderName(window.name) .. "/" .. tostring(game.PlaceId)
+        
+            -- Create config folder
+            if not isfolder(configSystem.configFolder) then
+                local success, err = pcall(function()
+                    makefolder(configSystem.configFolder)
+                end)
+                if not success then warn("Failed to create folder:", err) end
+            end
+        
+            configSystem.sector = tab:CreateSector("Configs", side or "left")
+        
+            local ConfigNameBox = configSystem.sector:AddTextbox("Config Name", "", nil, function() end, "")
+            local ConfigDropdown = configSystem.sector:AddDropdown("Configs", {}, "", false, function() end, "")
+        
+            -- Helper to refresh dropdown options
+            local function RefreshDropdown()
+                local current = ConfigDropdown:Get()
+                local files = {}
+                for _, file in ipairs(listfiles(configSystem.configFolder)) do
+                    if file:match("%.txt$") and not file:find("_autoload.txt") then
+                        table.insert(files, file:match("([^\\]+)%.txt$"))
+                    end
+                end
+                ConfigDropdown:SetOptions(files)
+                if table.find(files, current) then
+                    ConfigDropdown:Set(current)
+                end
+            end
+            
+        
+            -- Autoload feature
+            local autoLoadPath = configSystem.configFolder .. "/_autoload.txt"
+            if isfile(autoLoadPath) then
+                local autoLoadConfig = readfile(autoLoadPath)
+                if autoLoadConfig ~= "" and isfile(configSystem.configFolder .. "/" .. autoLoadConfig .. ".txt") then
+                    ConfigDropdown:Set(autoLoadConfig)
+        
+                    local success, content = pcall(readfile, configSystem.configFolder .. "/" .. autoLoadConfig .. ".txt")
+                    if success and content then
+                        local rawData = httpservice:JSONDecode(content)
+                        local parsedData = {}
+        
+                        for k, v in pairs(rawData) do
+                            if typeof(v) == "table" then
+                                if typeof(v[1]) == "number" then
+                                    parsedData[k] = Color3.new(unpack(v))
+                                elseif typeof(v[1]) == "table" then
+                                    parsedData[k] = v[1]
+                                end
+                            elseif tostring(v):find("Enum.KeyCode.") then
+                                parsedData[k] = Enum.KeyCode[tostring(v):gsub("Enum.KeyCode.", "")]
+                            else
+                                parsedData[k] = v
+                            end
+                        end
+        
+                        for key, val in pairs(parsedData) do
+                            library.flags[key] = val
+                            for _, item in pairs(library.items) do
+                                if item.flag == key then
+                                    pcall(function()
+                                        item:Set(val)
+                                    end)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        
+            -- Auto Load toggle
+            local AutoLoadToggle = configSystem.sector:AddToggle("Auto Load", isfile(autoLoadPath), function(val)
+                if val then
+                    writefile(autoLoadPath, ConfigDropdown:Get() or "")
+                else
+                    if isfile(autoLoadPath) then
+                        delfile(autoLoadPath)
+                    end
+                end
+            end)
+        
+            configSystem.Create = configSystem.sector:AddButton("Create", function()
+                local configName = ConfigNameBox:Get()
+                if not configName or configName == "" then return end
+        
+                local data = {}
+                for key, val in pairs(library.flags) do
+                    if val ~= nil and val ~= "" then
+                        if typeof(val) == "Color3" then
+                            data[key] = { val.R, val.G, val.B }
+                        elseif typeof(val) == "EnumItem" and tostring(val):find("Enum.KeyCode") then
+                            data[key] = val.Name
+                        elseif typeof(val) == "table" then
+                            data[key] = { val }
+                        else
+                            data[key] = val
+                        end
+                    end
+                end
+        
+                writefile(configSystem.configFolder .. "/" .. configName .. ".txt", httpservice:JSONEncode(data))
+                RefreshDropdown()
+            end)
+        
+            configSystem.Save = configSystem.sector:AddButton("Save", function()
+                local configName = ConfigDropdown:Get()
+                if not configName or configName == "" then return end
+        
+                local data = {}
+                for key, val in pairs(library.flags) do
+                    if val ~= nil and val ~= "" then
+                        if typeof(val) == "Color3" then
+                            data[key] = { val.R, val.G, val.B }
+                        elseif typeof(val) == "EnumItem" and tostring(val):find("Enum.KeyCode") then
+                            data[key] = "Enum.KeyCode." .. val.Name
+                        elseif typeof(val) == "table" then
+                            data[key] = { val }
+                        else
+                            data[key] = val
+                        end
+                    end
+                end
+        
+                writefile(configSystem.configFolder .. "/" .. configName .. ".txt", httpservice:JSONEncode(data))
+            end)
+        
+            configSystem.Load = configSystem.sector:AddButton("Load", function()
+                local configName = ConfigDropdown:Get()
+                if not configName or configName == "" then return end
+        
+                local success, content = pcall(readfile, configSystem.configFolder .. "/" .. configName .. ".txt")
+                if success and content then
+                    local rawData = httpservice:JSONDecode(content)
+                    local parsedData = {}
+        
+                    for k, v in pairs(rawData) do
+                        if typeof(v) == "table" then
+                            if typeof(v[1]) == "number" then
+                                parsedData[k] = Color3.new(unpack(v))
+                            elseif typeof(v[1]) == "table" then
+                                parsedData[k] = v[1]
+                            end
+                        elseif tostring(v):find("Enum.KeyCode.") then
+                            parsedData[k] = Enum.KeyCode[tostring(v):gsub("Enum.KeyCode.", "")]
+                        else
+                            parsedData[k] = v
+                        end
+                    end
+        
+                    for key, val in pairs(parsedData) do
+                        library.flags[key] = val
+                        for _, item in pairs(library.items) do
+                            if item.flag == key then
+                                pcall(function()
+                                    item:Set(val)
+                                end)
+                            end
+                        end
+                    end
+                end
+            end)
+        
+            configSystem.Delete = configSystem.sector:AddButton("Delete", function()
+                local configName = ConfigDropdown:Get()
+                if not configName or configName == "" then return end
+        
+                local filePath = configSystem.configFolder .. "/" .. configName .. ".txt"
+                if isfile(filePath) then
+                    delfile(filePath)
+                    RefreshDropdown()
+                end
+        
+                -- Delete autoload if pointing to this config
+                if isfile(autoLoadPath) and readfile(autoLoadPath) == configName then
+                    delfile(autoLoadPath)
+                    AutoLoadToggle:Set(false)
+                end
+            end)
+        
+            return configSystem
+        end
+        
+        
+
+        --[[ not finished lol
+        function tab:CreatePlayerlist(name)
+            local list = { }
+            list.name = name or ""
+
+            list.Main = Instance.new("Frame", tab.TabPage) 
+            list.Main.Name = list.name:gsub(" ", "") .. "Sector"
+            list.Main.BorderColor3 = window.theme.outlinecolor
+            list.Main.ZIndex = 2
+            list.Main.Size = UDim2.fromOffset(window.size.X.Offset - 22, 220)
+            list.Main.BackgroundColor3 = window.theme.sectorcolor
+            list.Main.Position = UDim2.new(0, 11, 0, 12)
+
+            tab.SectorsLeft[#tab.SectorsLeft + 1] = 220
+            --tab.SectorsRight[#tab.SectorsLeft + 1].space = 220
+
+            list.Line = Instance.new("Frame", list.Main)
+            list.Line.Name = "line"
+            list.Line.ZIndex = 2
+            list.Line.Size = UDim2.fromOffset(list.Main.Size.X.Offset + 2, 1)
+            list.Line.BorderSizePixel = 0
+            list.Line.Position = UDim2.fromOffset(-1, -1)
+            list.Line.BackgroundColor3 = window.theme.accentcolor
+
+            list.BlackOutline = Instance.new("Frame", list.Main)
+            list.BlackOutline.Name = "blackline"
+            list.BlackOutline.ZIndex = 1
+            list.BlackOutline.Size = list.Main.Size + UDim2.fromOffset(4, 4)
+            list.BlackOutline.BorderSizePixel = 0
+            list.BlackOutline.BackgroundColor3 = window.theme.outlinecolor2
+            list.BlackOutline.Position = UDim2.fromOffset(-2, -2)
+
+            local size = textservice:GetTextSize(list.name, 13, window.theme.font, Vector2.new(2000, 2000))
+            list.Label = Instance.new("TextLabel", list.Main)
+            list.Label.AnchorPoint = Vector2.new(0,0.5)
+            list.Label.Position = UDim2.fromOffset(12, -1)
+            list.Label.Size = UDim2.fromOffset(math.clamp(textservice:GetTextSize(list.name, 13, window.theme.font, Vector2.new(200,300)).X + 10, 0, list.Main.Size.X.Offset), size.Y)
+            list.Label.BackgroundTransparency = 1
+            list.Label.BorderSizePixel = 0
+            list.Label.ZIndex = 4
+            list.Label.Text = list.name
+            list.Label.TextColor3 = Color3.new(1,1,2552/255)
+            list.Label.TextStrokeTransparency = 1
+            list.Label.Font = window.theme.font
+            list.Label.TextSize = 13
+
+            list.LabelBackFrame = Instance.new("Frame", list.Label)
+            list.LabelBackFrame.Name = "labelframe"
+            list.LabelBackFrame.ZIndex = 3
+            list.LabelBackFrame.Size = UDim2.fromOffset(list.Label.Size.X.Offset, 10)
+            list.LabelBackFrame.BorderSizePixel = 0
+            list.LabelBackFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            list.LabelBackFrame.Position = UDim2.fromOffset(0, 6)
+
+            list.Items = Instance.new("ScrollingFrame", list.Main) 
+            list.Items.Name = "items"
+            list.Items.ZIndex = 2
+            list.Items.ScrollBarThickness = 1
+            list.Items.BackgroundTransparency = 1
+            list.Items.Size = list.Main.Size - UDim2.fromOffset(10, 15)
+            list.Items.ScrollingDirection = "Y"
+            list.Items.BorderSizePixel = 0
+            list.Items.Position = UDim2.fromOffset(5, 10)
+            list.Items.CanvasSize = list.Items.Size
+
+            list.ListLayout = Instance.new("UIListLayout", list.Items)
+            list.ListLayout.FillDirection = Enum.FillDirection.Vertical
+            list.ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            list.ListLayout.Padding = UDim.new(0, 0)
+
+            list.ListPadding = Instance.new("UIPadding", list.Items)
+            list.ListPadding.PaddingTop = UDim.new(0, 2)
+            list.ListPadding.PaddingLeft = UDim.new(0, 6)
+            list.ListPadding.PaddingRight = UDim.new(0, 6)
+
+            list.items = { }
+            function list:AddPlayer(Player)
+                local player = { }
+
+                player.Main = Instance.new("Frame", list.Items)
+                player.Main.Name = Player.Name
+                player.Main.BorderColor3 = window.theme.outlinecolor
+                player.Main.ZIndex = 3
+                player.Main.Size = UDim2.fromOffset(list.Items.AbsoluteSize.X - 12, 20)
+                player.Main.BackgroundColor3 = window.theme.sectorcolor
+                player.Main.Position = UDim2.new(0, 0, 0, 0)
+
+                table.insert(list.items, Player)
+                list.Items.CanvasSize = UDim2.fromOffset(list.Items.AbsoluteSize.X, (#list.items * 20))
+                list.Items.Size = UDim2.fromOffset(list.Items.AbsoluteSize.X, math.clamp(list.Items.CanvasSize.Y.Offset, 0, 205))
+                return player
+            end
+
+            function list:RemovePlayer(Player)
+                local p = list.Items:FindFirstChild(Player)
+                if p then
+                    for i,v in pairs(list.items) do
+                        if v == Player then
+                            table.remove(list.items, i)
+                        end
+                    end
+
+                    p:Remove()
+                    list.Items.CanvasSize = UDim2.fromOffset(list.Items.AbsoluteSize.X, (#list.items * 90))
+                end
+            end
+
+            for i,v in pairs(game:GetService("Players"):GetPlayers()) do
+                list:AddPlayer(v)
+            end
+            
+            game:GetService("Players").PlayerAdded:Connect(function(v)
+                list:AddPlayer(v)
+            end)
+            
+            return list
+        end
+        ]]--
+
+        table.insert(window.Tabs, tab)
+        return tab
+    end
 
     return window
 end
