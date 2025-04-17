@@ -3422,16 +3422,19 @@ function library:CreateWindow(name, size, hidebutton)
         
             -- Helper to refresh dropdown options
             local function RefreshDropdown()
-                ConfigDropdown:Clear()
+                local current = ConfigDropdown:Get()
+                local files = {}
                 for _, file in ipairs(listfiles(configSystem.configFolder)) do
                     if file:match("%.txt$") and not file:find("_autoload.txt") then
-                        local name = file:match("([^\\]+)%.txt$")
-                        ConfigDropdown:Add(name)
+                        table.insert(files, file:match("([^\\]+)%.txt$"))
                     end
                 end
+                ConfigDropdown:SetOptions(files)
+                if table.find(files, current) then
+                    ConfigDropdown:Set(current)
+                end
             end
-        
-            RefreshDropdown()
+            
         
             -- Autoload feature
             local autoLoadPath = configSystem.configFolder .. "/_autoload.txt"
