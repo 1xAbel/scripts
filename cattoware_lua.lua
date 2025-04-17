@@ -3401,7 +3401,7 @@ function library:CreateWindow(name, size, hidebutton)
 	    local configSystem = {}
 	    local httpService = game:GetService("HttpService")
 	    
-	    -- Validate and sanitize folder name
+	    -- Sanitize folder names for safety
 	    local function sanitizeFolderName(name)
 	        if not name or type(name) ~= "string" then
 	            return "UnnamedConfig"
@@ -3412,42 +3412,47 @@ function library:CreateWindow(name, size, hidebutton)
 	    -- Create config folder path
 	    configSystem.configFolder = sanitizeFolderName(window.name) .. "/" .. tostring(game.PlaceId)
 	    
+	    -- Track current selection
+	    local currentConfigSelection = ""
+	    local configFiles = {}
+	    
 	    -- Ensure config folder exists
 	    local function ensureConfigFolder()
 	        if not isfolder(configSystem.configFolder) then
 	            local success, err = pcall(makefolder, configSystem.configFolder)
 	            if not success then
-	                warn("Failed to create config folder:", err)
+	                warn("Config folder creation failed:", err)
 	                return false
 	            end
 	        end
 	        return true
 	    end
 	    
-	    if not ensureConfigFolder() then
-	        warn("Config system initialization failed - could not create folder")
-	        return configSystem
-	    end
-	    
-	    -- Create UI elements
+	    -- Create UI sector
 	    configSystem.sector = tab:CreateSector("Configs", side or "left")
-	    local ConfigNameBox = configSystem.sector:AddTextbox("Config Name", "", nil, function() end, "")
-	    local ConfigDropdown = configSystem.sector:AddDropdown("Configs", {}, "", false, function() end, "")
 	    
-	    -- Path for autoload config
-	    local autoLoadPath = configSystem.configFolder .. "/_autoload.txt"
+	    -- Config name input
+	    local ConfigNameBox = configSystem.sector:AddTextbox("Config Name", "", function(value)
+	        -- Optional: Add validation if needed
+	    end)
 	    
-	    -- Refresh dropdown with available configs
-	    local function refreshDropdown()
-	        if not ensureConfigFolder() then return end
-	        
-	        local current = ConfigDropdown:Get()
+	    -- Config dropdown - implementation varies by library
+	    local ConfigDropdown = configSystem.sector:AddDropdown("Configs", {}, "", function(value)
+	        currentConfigSelection = value
+	    end)
+	    
+	    -- Autoload path
+	    local autoLoadPath = configSystem.configFolder .. "/_autoload.json"
+	    
+	    -- Get list of config files
+	    local function getConfigFiles()
 	        local files = {}
+	        if not ensureConfigFolder() then return files end
 	        
 	        local success, listedFiles = pcall(listfiles, configSystem.configFolder)
 	        if not success then
 	            warn("Failed to list config files:", listedFiles)
-	            return
+	            return files
 	        end
 	        
 	        for _, file in ipairs(listedFiles) do
@@ -3459,57 +3464,101 @@ function library:CreateWindow(name, size, hidebutton)
 	            end
 	        end
 	        
-	        ConfigDropdown:SetOptions(files)
-	        if table.find(files, current) then
-	            ConfigDropdown:Set(current)
+	        return files
+	    end
+	    
+	    -- Refresh dropdown options
+	    local function refreshDropdown()
+	        configFiles = getConfigFiles()
+	        
+	        -- Different UI libraries handle dropdowns differently
+	        -- Try common patterns:
+	        
+	        -- Pattern 1: SetOptions method
+	        if ConfigDropdown.SetOptions then
+	            ConfigDropdown:SetOptions(configFiles)
+	        
+	        -- Pattern 2: Clear and Add methods
+	        elseif ConfigDropdown.Clear and ConfigDropdown.Add then
+	            ConfigDropdown:Clear()
+	            for _, fileName in ipairs(configFiles) do
+	                ConfigDropdown:Add(fileName)
+	            end
+	        
+	        -- Pattern 3: Recreate dropdown
+	        else
+	            configSystem.sector:RemoveElement(ConfigDropdown)
+	            ConfigDropdown = configSystem.sector:AddDropdown("Configs", configFiles, currentConfigSelection, function(value)
+	                currentConfigSelection = value
+	            end)
+	        end
+	        
+	        -- Restore selection if available
+	        if table.find(configFiles, currentConfigSelection) then
+	            if ConfigDropdown.Set then
+	                ConfigDropdown:Set(currentConfigSelection)
+	            end
 	        end
 	    end
 	    
-	    -- Improved config data serialization
-	    local function serializeConfigData(data)
-	        local serialized = {}
+	    -- Enhanced config serialization
+	    local function serializeConfig(data)
+	        local serialized = {
+	            _metadata = {
+	                version = 1,
+	                createdAt = os.time(),
+	                gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+	            }
+	        }
 	        
 	        for key, val in pairs(data) do
-	            if val == nil then
-	                -- Skip nil values
-	            elseif typeof(val) == "Color3" then
-	                serialized[key] = {type = "Color3", value = {val.R, val.G, val.B}}
-	            elseif typeof(val) == "EnumItem" then
-	                serialized[key] = {type = "EnumItem", value = tostring(val)}
-	            elseif typeof(val) == "table" then
-	                serialized[key] = {type = "table", value = val}
-	            else
-	                serialized[key] = {type = typeof(val), value = val}
+	            if val ~= nil then
+	                if typeof(val) == "Color3" then
+	                    serialized[key] = {_type = "Color3", r = val.R, g = val.G, b = val.B}
+	                elseif typeof(val) == "EnumItem" then
+	                    serialized[key] = {_type = "Enum", enumType = tostring(val):match("Enum%.(.-)%."), value = val.Name}
+	                elseif typeof(val) == "table" then
+	                    serialized[key] = {_type = "table", value = val}
+	                else
+	                    serialized[key] = val
+	                end
 	            end
 	        end
 	        
 	        return serialized
 	    end
 	    
-	    -- Improved config data deserialization
-	    local function deserializeConfigData(data)
+	    -- Enhanced config deserialization
+	    local function deserializeConfig(data)
+	        if not data then return nil end
+	        
 	        local deserialized = {}
 	        
-	        for key, val in pairs(data) do
-	            if type(val) == "table" and val.type and val.value then
-	                if val.type == "Color3" then
-	                    deserialized[key] = Color3.new(unpack(val.value))
-	                elseif val.type == "EnumItem" then
-	                    local enumType, enumValue = val.value:match("Enum%.(%w+)%.(%w+)")
-	                    if enumType and enumValue then
-	                        deserialized[key] = Enum[enumType][enumValue]
-	                    end
-	                elseif val.type == "table" then
-	                    deserialized[key] = val.value
-	                else
-	                    deserialized[key] = val.value
-	                end
-	            else
-	                -- Backward compatibility with old format
-	                if type(val) == "table" and #val == 3 and val[1] and val[2] and val[3] then
+	        -- Handle legacy format (no _type markers)
+	        if not data._metadata then
+	            for key, val in pairs(data) do
+	                if type(val) == "table" and #val == 3 then
 	                    deserialized[key] = Color3.new(unpack(val))
 	                elseif type(val) == "string" and val:find("Enum.KeyCode.") then
 	                    deserialized[key] = Enum.KeyCode[val:gsub("Enum.KeyCode.", "")]
+	                else
+	                    deserialized[key] = val
+	                end
+	            end
+	            return deserialized
+	        end
+	        
+	        -- Handle new format
+	        for key, val in pairs(data) do
+	            if key ~= "_metadata" then
+	                if type(val) == "table" and val._type then
+	                    if val._type == "Color3" then
+	                        deserialized[key] = Color3.new(val.r, val.g, val.b)
+	                    elseif val._type == "Enum" and Enum[val.enumType] then
+	                        deserialized[key] = Enum[val.enumType][val.value]
+	                    elseif val._type == "table" then
+	                        deserialized[key] = val.value
+	                    end
 	                else
 	                    deserialized[key] = val
 	                end
@@ -3519,50 +3568,74 @@ function library:CreateWindow(name, size, hidebutton)
 	        return deserialized
 	    end
 	    
-	    -- Load config from file
-	    local function loadConfigFile(configName)
-	        if not configName or configName == "" then return nil end
-	        
-	        local filePath = configSystem.configFolder .. "/" .. configName .. ".json"
-	        if not isfile(filePath) then return nil end
-	        
-	        local success, content = pcall(readfile, filePath)
-	        if not success or not content then return nil end
-	        
-	        local success, data = pcall(httpService.JSONDecode, httpService, content)
-	        if not success or not data then return nil end
-	        
-	        return deserializeConfigData(data)
-	    end
-	    
 	    -- Save config to file
-	    local function saveConfigFile(configName, data)
-	        if not configName or configName == "" then return false end
-	        if not ensureConfigFolder() then return false end
-	        
-	        local filePath = configSystem.configFolder .. "/" .. configName .. ".json"
-	        local serialized = serializeConfigData(data)
-	        
-	        local success, json = pcall(httpService.JSONEncode, httpService, serialized)
-	        if not success or not json then return false end
-	        
-	        local success, err = pcall(writefile, filePath, json)
-	        if not success then
-	            warn("Failed to save config:", err)
+	    local function saveConfig(configName)
+	        if not configName or configName == "" then
+	            warn("Config name cannot be empty")
 	            return false
 	        end
 	        
+	        if not ensureConfigFolder() then
+	            warn("Cannot save - config folder unavailable")
+	            return false
+	        end
+	        
+	        local filePath = configSystem.configFolder .. "/" .. configName .. ".json"
+	        local serialized = serializeConfig(library.flags)
+	        
+	        local success, json = pcall(httpService.JSONEncode, httpService, serialized)
+	        if not success then
+	            warn("Failed to serialize config:", json)
+	            return false
+	        end
+	        
+	        local success, err = pcall(writefile, filePath, json)
+	        if not success then
+	            warn("Failed to save config file:", err)
+	            return false
+	        end
+	        
+	        refreshDropdown()
 	        return true
 	    end
 	    
-	    -- Apply config to UI
-	    local function applyConfig(data)
-	        if not data then return end
+	    -- Load config from file
+	    local function loadConfig(configName)
+	        if not configName or configName == "" then
+	            warn("No config selected")
+	            return false
+	        end
 	        
-	        for key, val in pairs(data) do
+	        local filePath = configSystem.configFolder .. "/" .. configName .. ".json"
+	        if not isfile(filePath) then
+	            warn("Config file does not exist")
+	            return false
+	        end
+	        
+	        local success, content = pcall(readfile, filePath)
+	        if not success then
+	            warn("Failed to read config file:", content)
+	            return false
+	        end
+	        
+	        local success, data = pcall(httpService.JSONDecode, httpService, content)
+	        if not success then
+	            warn("Failed to parse config JSON:", data)
+	            return false
+	        end
+	        
+	        local deserialized = deserializeConfig(data)
+	        if not deserialized then
+	            warn("Failed to deserialize config data")
+	            return false
+	        end
+	        
+	        -- Apply to UI elements
+	        for key, val in pairs(deserialized) do
 	            if library.flags[key] ~= nil then
 	                library.flags[key] = val
 	                
+	                -- Update UI elements
 	                for _, item in pairs(library.items) do
 	                    if item.flag == key then
 	                        pcall(function()
@@ -3572,31 +3645,78 @@ function library:CreateWindow(name, size, hidebutton)
 	                end
 	            end
 	        end
+	        
+	        return true
 	    end
 	    
-	    -- Handle autoload functionality
+	    -- Delete config file
+	    local function deleteConfig(configName)
+	        if not configName or configName == "" then
+	            warn("No config selected")
+	            return false
+	        end
+	        
+	        local filePath = configSystem.configFolder .. "/" .. configName .. ".json"
+	        if not isfile(filePath) then
+	            warn("Config file does not exist")
+	            return false
+	        end
+	        
+	        local success, err = pcall(delfile, filePath)
+	        if not success then
+	            warn("Failed to delete config:", err)
+	            return false
+	        end
+	        
+	        -- Handle autoload if pointing to deleted config
+	        if isfile(autoLoadPath) and readfile(autoLoadPath) == configName then
+	            delfile(autoLoadPath)
+	        end
+	        
+	        refreshDropdown()
+	        return true
+	    end
+	    
+	    -- Handle autoload at startup
 	    local function handleAutoLoad()
 	        if not isfile(autoLoadPath) then return end
 	        
 	        local autoLoadConfig = readfile(autoLoadPath)
 	        if autoLoadConfig == "" then return end
 	        
-	        local configData = loadConfigFile(autoLoadConfig)
-	        if configData then
-	            ConfigDropdown:Set(autoLoadConfig)
-	            applyConfig(configData)
+	        if loadConfig(autoLoadConfig) then
+	            currentConfigSelection = autoLoadConfig
+	            if ConfigDropdown.Set then
+	                ConfigDropdown:Set(autoLoadConfig)
+	            end
 	        end
 	    end
 	    
-	    -- Initialize autoload
-	    handleAutoLoad()
+	    -- UI Buttons
+	    configSystem.Create = configSystem.sector:AddButton("Create", function()
+	        local configName = ConfigNameBox:Get()
+	        if saveConfig(configName) then
+	            ConfigNameBox:Set("")
+	        end
+	    end)
 	    
-	    -- Auto Load toggle
-	    local AutoLoadToggle = configSystem.sector:AddToggle("Auto Load", isfile(autoLoadPath), function(val)
-	        if val then
-	            local currentConfig = ConfigDropdown:Get()
-	            if currentConfig and currentConfig ~= "" then
-	                writefile(autoLoadPath, currentConfig)
+	    configSystem.Save = configSystem.sector:AddButton("Save", function()
+	        saveConfig(currentConfigSelection)
+	    end)
+	    
+	    configSystem.Load = configSystem.sector:AddButton("Load", function()
+	        loadConfig(currentConfigSelection)
+	    end)
+	    
+	    configSystem.Delete = configSystem.sector:AddButton("Delete", function()
+	        deleteConfig(currentConfigSelection)
+	    end)
+	    
+	    -- Autoload toggle
+	    local AutoLoadToggle = configSystem.sector:AddToggle("Auto Load", isfile(autoLoadPath), function(enabled)
+	        if enabled then
+	            if currentConfigSelection ~= "" then
+	                writefile(autoLoadPath, currentConfigSelection)
 	            end
 	        else
 	            if isfile(autoLoadPath) then
@@ -3605,79 +3725,8 @@ function library:CreateWindow(name, size, hidebutton)
 	        end
 	    end)
 	    
-	    -- Create config button
-	    configSystem.Create = configSystem.sector:AddButton("Create", function()
-	        local configName = ConfigNameBox:Get()
-	        if not configName or configName == "" then 
-	            warn("Config name cannot be empty")
-	            return 
-	        end
-	        
-	        if saveConfigFile(configName, library.flags) then
-	            refreshDropdown()
-	            ConfigNameBox:Set("")
-	        else
-	            warn("Failed to create config")
-	        end
-	    end)
-	    
-	    -- Save config button
-	    configSystem.Save = configSystem.sector:AddButton("Save", function()
-	        local configName = ConfigDropdown:Get()
-	        if not configName or configName == "" then 
-	            warn("No config selected")
-	            return 
-	        end
-	        
-	        if saveConfigFile(configName, library.flags) then
-	            -- Update autoload if it's pointing to this config
-	            if AutoLoadToggle:Get() then
-	                writefile(autoLoadPath, configName)
-	            end
-	        else
-	            warn("Failed to save config")
-	        end
-	    end)
-	    
-	    -- Load config button
-	    configSystem.Load = configSystem.sector:AddButton("Load", function()
-	        local configName = ConfigDropdown:Get()
-	        if not configName or configName == "" then 
-	            warn("No config selected")
-	            return 
-	        end
-	        
-	        local configData = loadConfigFile(configName)
-	        if configData then
-	            applyConfig(configData)
-	        else
-	            warn("Failed to load config")
-	        end
-	    end)
-	    
-	    -- Delete config button
-	    configSystem.Delete = configSystem.sector:AddButton("Delete", function()
-	        local configName = ConfigDropdown:Get()
-	        if not configName or configName == "" then 
-	            warn("No config selected")
-	            return 
-	        end
-	        
-	        local filePath = configSystem.configFolder .. "/" .. configName .. ".json"
-	        if isfile(filePath) then
-	            delfile(filePath)
-	            
-	            -- Handle autoload if pointing to deleted config
-	            if isfile(autoLoadPath) and readfile(autoLoadPath) == configName then
-	                delfile(autoLoadPath)
-	                AutoLoadToggle:Set(false)
-	            end
-	            
-	            refreshDropdown()
-	        end
-	    end)
-	    
-	    -- Initial refresh
+	    -- Initialize
+	    handleAutoLoad()
 	    refreshDropdown()
 	    
 	    return configSystem
