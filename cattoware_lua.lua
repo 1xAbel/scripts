@@ -3398,156 +3398,194 @@ function library:CreateWindow(name, size, hidebutton)
         end
 
         function tab:CreateConfigSystem(side)
-            local configSystem = { }
-
+            local configSystem = {}
+            local httpservice = game:GetService("HttpService")
+        
             local function sanitizeFolderName(name)
-                return name:gsub("[^%w_%s%-%.]", "_") -- Replace invalid characters with underscores
+                return name:gsub("[^%w_%s%-%.]", "_")
             end
-
+        
             configSystem.configFolder = sanitizeFolderName(window.name) .. "/" .. tostring(game.PlaceId)
-
-            -- Check if the folder exists; if not, create it
+        
+            -- Create config folder
             if not isfolder(configSystem.configFolder) then
                 local success, err = pcall(function()
                     makefolder(configSystem.configFolder)
                 end)
-
-                -- Handle folder creation error
-                if not success then
-                    warn("Failed to create folder: " .. err)
-                end
+                if not success then warn("Failed to create folder:", err) end
             end
-
-            print("Folder path:", configSystem.configFolder)
-            print("isfolder check:", isfolder(configSystem.configFolder))
-
-
-            if isfile(configSystem.configFolder) then
-                warn("A file with the same name as the intended folder exists!")
-            end
-            
-
-
+        
             configSystem.sector = tab:CreateSector("Configs", side or "left")
-
-            local ConfigName = configSystem.sector:AddTextbox("Config Name", "", ConfigName, function() end, "")
-            local default = tostring(listfiles(configSystem.configFolder)[1] or ""):gsub(configSystem.configFolder .. "\\", ""):gsub(".txt", "")
-            local Config = configSystem.sector:AddDropdown("Configs", {}, default, false, function() end, "")
-            for i,v in pairs(listfiles(configSystem.configFolder)) do
-                if v:find(".txt") then
-                    Config:Add(tostring(v):gsub(configSystem.configFolder .. "\\", ""):gsub(".txt", ""))
+        
+            local ConfigNameBox = configSystem.sector:AddTextbox("Config Name", "", nil, function() end, "")
+            local ConfigDropdown = configSystem.sector:AddDropdown("Configs", {}, "", false, function() end, "")
+        
+            -- Helper to refresh dropdown options
+            local function RefreshDropdown()
+                ConfigDropdown:Clear()
+                for _, file in ipairs(listfiles(configSystem.configFolder)) do
+                    if file:match("%.txt$") and not file:find("_autoload.txt") then
+                        local name = file:match("([^\\]+)%.txt$")
+                        ConfigDropdown:Add(name)
+                    end
                 end
             end
-
+        
+            RefreshDropdown()
+        
+            -- Autoload feature
+            local autoLoadPath = configSystem.configFolder .. "/_autoload.txt"
+            if isfile(autoLoadPath) then
+                local autoLoadConfig = readfile(autoLoadPath)
+                if autoLoadConfig ~= "" and isfile(configSystem.configFolder .. "/" .. autoLoadConfig .. ".txt") then
+                    ConfigDropdown:Set(autoLoadConfig)
+        
+                    local success, content = pcall(readfile, configSystem.configFolder .. "/" .. autoLoadConfig .. ".txt")
+                    if success and content then
+                        local rawData = httpservice:JSONDecode(content)
+                        local parsedData = {}
+        
+                        for k, v in pairs(rawData) do
+                            if typeof(v) == "table" then
+                                if typeof(v[1]) == "number" then
+                                    parsedData[k] = Color3.new(unpack(v))
+                                elseif typeof(v[1]) == "table" then
+                                    parsedData[k] = v[1]
+                                end
+                            elseif tostring(v):find("Enum.KeyCode.") then
+                                parsedData[k] = Enum.KeyCode[tostring(v):gsub("Enum.KeyCode.", "")]
+                            else
+                                parsedData[k] = v
+                            end
+                        end
+        
+                        for key, val in pairs(parsedData) do
+                            library.flags[key] = val
+                            for _, item in pairs(library.items) do
+                                if item.flag == key then
+                                    pcall(function()
+                                        item:Set(val)
+                                    end)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        
+            -- Auto Load toggle
+            local AutoLoadToggle = configSystem.sector:AddToggle("Auto Load", isfile(autoLoadPath), function(val)
+                if val then
+                    writefile(autoLoadPath, ConfigDropdown:Get() or "")
+                else
+                    if isfile(autoLoadPath) then
+                        delfile(autoLoadPath)
+                    end
+                end
+            end)
+        
             configSystem.Create = configSystem.sector:AddButton("Create", function()
-                for i,v in pairs(listfiles(configSystem.configFolder)) do
-                    Config:Remove(tostring(v):gsub(configSystem.configFolder .. "\\", ""):gsub(".txt", ""))
-                end
-
-                if ConfigName:Get() and ConfigName:Get() ~= "" then
-                    local config = {}
-    
-                    for i,v in pairs(library.flags) do
-                        if (v ~= nil and v ~= "") then
-                            if (typeof(v) == "Color3") then
-                                config[i] = { v.R, v.G, v.B }
-                            elseif (tostring(v):find("Enum.KeyCode")) then
-                                config[i] = v.Name
-                            elseif (typeof(v) == "table") then
-                                config[i] = { v }
-                            else
-                                config[i] = v
-                            end
-                        end
-                    end
-    
-                    writefile(configSystem.configFolder .. "/" .. ConfigName:Get() .. ".txt", httpservice:JSONEncode(config))
-    
-                    for i,v in pairs(listfiles(configSystem.configFolder)) do
-                        if v:find(".txt") then
-                            Config:Add(tostring(v):gsub(configSystem.configFolder .. "\\", ""):gsub(".txt", ""))
+                local configName = ConfigNameBox:Get()
+                if not configName or configName == "" then return end
+        
+                local data = {}
+                for key, val in pairs(library.flags) do
+                    if val ~= nil and val ~= "" then
+                        if typeof(val) == "Color3" then
+                            data[key] = { val.R, val.G, val.B }
+                        elseif typeof(val) == "EnumItem" and tostring(val):find("Enum.KeyCode") then
+                            data[key] = val.Name
+                        elseif typeof(val) == "table" then
+                            data[key] = { val }
+                        else
+                            data[key] = val
                         end
                     end
                 end
+        
+                writefile(configSystem.configFolder .. "/" .. configName .. ".txt", httpservice:JSONEncode(data))
+                RefreshDropdown()
             end)
-
+        
             configSystem.Save = configSystem.sector:AddButton("Save", function()
-                local config = {}
-                if Config:Get() and Config:Get() ~= "" then
-                    for i,v in pairs(library.flags) do
-                        if (v ~= nil and v ~= "") then
-                            if (typeof(v) == "Color3") then
-                                config[i] = { v.R, v.G, v.B }
-                            elseif (tostring(v):find("Enum.KeyCode")) then
-                                config[i] = "Enum.KeyCode." .. v.Name
-                            elseif (typeof(v) == "table") then
-                                config[i] = { v }
-                            else
-                                config[i] = v
-                            end
+                local configName = ConfigDropdown:Get()
+                if not configName or configName == "" then return end
+        
+                local data = {}
+                for key, val in pairs(library.flags) do
+                    if val ~= nil and val ~= "" then
+                        if typeof(val) == "Color3" then
+                            data[key] = { val.R, val.G, val.B }
+                        elseif typeof(val) == "EnumItem" and tostring(val):find("Enum.KeyCode") then
+                            data[key] = "Enum.KeyCode." .. val.Name
+                        elseif typeof(val) == "table" then
+                            data[key] = { val }
+                        else
+                            data[key] = val
                         end
                     end
-    
-                    writefile(configSystem.configFolder .. "/" .. Config:Get() .. ".txt", httpservice:JSONEncode(config))
                 end
+        
+                writefile(configSystem.configFolder .. "/" .. configName .. ".txt", httpservice:JSONEncode(data))
             end)
-
+        
             configSystem.Load = configSystem.sector:AddButton("Load", function()
-                local Success = pcall(readfile, configSystem.configFolder .. "/" .. Config:Get() .. ".txt")
-                if (Success) then
-                    pcall(function() 
-                        local ReadConfig = httpservice:JSONDecode(readfile(configSystem.configFolder .. "/" .. Config:Get() .. ".txt"))
-                        local NewConfig = {}
-    
-                        for i,v in pairs(ReadConfig) do
-                            if (typeof(v) == "table") then
-                                if (typeof(v[1]) == "number") then
-                                    NewConfig[i] = Color3.new(v[1], v[2], v[3])
-                                elseif (typeof(v[1]) == "table") then
-                                    NewConfig[i] = v[1]
-                                end
-                            elseif (tostring(v):find("Enum.KeyCode.")) then
-                                NewConfig[i] = Enum.KeyCode[tostring(v):gsub("Enum.KeyCode.", "")]
-                            else
-                                NewConfig[i] = v
+                local configName = ConfigDropdown:Get()
+                if not configName or configName == "" then return end
+        
+                local success, content = pcall(readfile, configSystem.configFolder .. "/" .. configName .. ".txt")
+                if success and content then
+                    local rawData = httpservice:JSONDecode(content)
+                    local parsedData = {}
+        
+                    for k, v in pairs(rawData) do
+                        if typeof(v) == "table" then
+                            if typeof(v[1]) == "number" then
+                                parsedData[k] = Color3.new(unpack(v))
+                            elseif typeof(v[1]) == "table" then
+                                parsedData[k] = v[1]
+                            end
+                        elseif tostring(v):find("Enum.KeyCode.") then
+                            parsedData[k] = Enum.KeyCode[tostring(v):gsub("Enum.KeyCode.", "")]
+                        else
+                            parsedData[k] = v
+                        end
+                    end
+        
+                    for key, val in pairs(parsedData) do
+                        library.flags[key] = val
+                        for _, item in pairs(library.items) do
+                            if item.flag == key then
+                                pcall(function()
+                                    item:Set(val)
+                                end)
                             end
                         end
-    
-                        library.flags = NewConfig
-    
-                        for i,v in pairs(library.flags) do
-                            for i2,v2 in pairs(library.items) do
-                                if (i ~= nil and i ~= "" and i ~= "Configs_Name" and i ~= "Configs" and v2.flag ~= nil) then
-                                    if (v2.flag == i) then
-                                        pcall(function() 
-                                            v2:Set(v)
-                                        end)
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
-
-            configSystem.Delete = configSystem.sector:AddButton("Delete", function()
-                for i,v in pairs(listfiles(configSystem.configFolder)) do
-                    Config:Remove(tostring(v):gsub(configSystem.configFolder .. "\\", ""):gsub(".txt", ""))
-                end
-
-                if (not Config:Get() or Config:Get() == "") then return end
-                if (not isfile(configSystem.configFolder .. "/" .. Config:Get() .. ".txt")) then return end
-                delfile(configSystem.configFolder .. "/" .. Config:Get() .. ".txt")
-
-                for i,v in pairs(listfiles(configSystem.configFolder)) do
-                    if v:find(".txt") then
-                        Config:Add(tostring(v):gsub(configSystem.configFolder .. "\\", ""):gsub(".txt", ""))
                     end
                 end
             end)
-
+        
+            configSystem.Delete = configSystem.sector:AddButton("Delete", function()
+                local configName = ConfigDropdown:Get()
+                if not configName or configName == "" then return end
+        
+                local filePath = configSystem.configFolder .. "/" .. configName .. ".txt"
+                if isfile(filePath) then
+                    delfile(filePath)
+                    RefreshDropdown()
+                end
+        
+                -- Delete autoload if pointing to this config
+                if isfile(autoLoadPath) and readfile(autoLoadPath) == configName then
+                    delfile(autoLoadPath)
+                    AutoLoadToggle:Set(false)
+                end
+            end)
+        
             return configSystem
         end
+        
+        
 
         --[[ not finished lol
         function tab:CreatePlayerlist(name)
