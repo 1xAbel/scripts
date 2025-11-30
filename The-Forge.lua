@@ -19,6 +19,18 @@ local char = lp.Character or lp.CharacterAdded:Wait()
 local rfFolder = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ToolService"):WaitForChild("RF")
 local OreList = {}
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+getgenv().flags = {
+    tweenspeed = 40,
+    distance = 5,
+    farmmethod = "Above",
+    current_tween = false,
+    autofarm = false,
+    autoore = false,
+    mob_selected = {},
+    ore_selected = {},
+}
 
 --remotes
 local blockRemote = rfFolder:WaitForChild("StartBlock")
@@ -39,11 +51,14 @@ local parryAnimations = {
     ["rbxassetid://73829363877010"] = 0.43,
     ["rbxassetid://131510736644901"] = 0.4,
     ["rbxassetid://98266710251041"] = 0.25,
-    --missing one
+    --missing spin move
+
+    --slime
+    --0.5
 }
 
 --functions
-local is_alive, farm_method, distance_check, parry, connect_parry, scan_ores do
+local is_alive, tweenToFARM, find_ore, distance_check, parry, connect_parry, scan_ores do
     is_alive = function()
         local char = lp.Character or lp.CharacterAdded:Wait()
         if lp and char ~= nil and char:FindFirstChild('HumanoidRootPart') ~= nil and char:FindFirstChild('Humanoid') ~= nil and char.Humanoid.Health > 0 then 
@@ -53,37 +68,51 @@ local is_alive, farm_method, distance_check, parry, connect_parry, scan_ores do
         return false
     end
 
-    farm_method = function(targetPart, distance)
-        local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-        if not (hrp and targetPart) then
-            return
-        end
+    tweenToFARM = function(Target)
+        if typeof(Target) == "Instance" and Target:IsA("BasePart") then Target = Target.Position end
+        if typeof(Target) == "CFrame" then Target = Target.Position end
+        if typeof(Target) ~= "Vector3" then return end
     
-        local targetCFrame
+        local char = lp.Character; if not char then return end
+        local HRP = char:FindFirstChild("HumanoidRootPart"); if not HRP then return end
     
-        if getgenv().farm_setting == "Above/Below" then
-            targetCFrame = CFrame.new(
-                targetPart.Position + Vector3.new(0, distance, 0),
-                targetPart.Position
-            )
-        elseif getgenv().farm_setting == "Front/Behind" then
-            targetCFrame = CFrame.new(
-                targetPart.Position + targetPart.CFrame.LookVector * distance,
-                targetPart.Position
-            )
-        end
+        flags.current_tween = true
     
-        if targetCFrame then
-            local travelTime = (hrp.Position - targetCFrame.Position).Magnitude / 100
-            local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
+        local StartPos = HRP.Position
+        local DeltaPos = Target - StartPos
+        local StartTime = tick()
+        local Duration = (StartPos - Target).Magnitude / flags.tweenspeed
+        if Duration <= 0 then return end
     
-            if _G.TWEENONE then
-                _G.TWEENONE:Cancel()
+        repeat
+            RunService.Heartbeat:Wait()
+            if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then break end
+            HRP = lp.Character.HumanoidRootPart
+            local d = tick() - StartTime
+            local p = math.min(d / Duration, 1)
+            local pos = StartPos + (DeltaPos * p)
+            HRP.Velocity = Vector3.new()
+            HRP.CFrame = CFrame.new(pos)
+        until (HRP.Position - Target).Magnitude <= flags.tweenspeed / 2000 or flags.current_tween == false
+    
+        if (HRP.Position - Target).Magnitude <= 15 then
+            if flags.farmmethod == "Above" then
+                HRP.CFrame = CFrame.new(Target + Vector3.new(0, flags.distance, 0), Target)
+            elseif flags.farmmethod == "Below" then
+                HRP.CFrame = CFrame.new(Target + Vector3.new(0, -flags.distance, 0), Target)
             end
-    
-            _G.TWEENONE = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-            _G.TWEENONE:Play()
         end
+    end
+
+    find_ore = function()
+        for _, obj in ipairs(game.workspace.Rocks:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Name == "Basalt Core" then
+                if obj.Parent and obj.Parent:FindFirstChild("Hitbox") then
+                    return obj
+                end
+            end
+        end
+        return nil
     end
     
     distance_check = function(part)
@@ -113,18 +142,59 @@ local is_alive, farm_method, distance_check, parry, connect_parry, scan_ores do
         end
     end
 
-    connect_parry = function(npc)
-        local hum = npc:FindFirstChild("Humanoid")
-        if hum then
-            hum.AnimationPlayed:Connect(function(track)
-                if track.Animation then
-                    local animId = track.Animation.AnimationId
-                    if parryAnimations[animId] then
-                        parry(npc, animId)
+    local slimeDelay = 0.49
+    safe_connect_parry = function(npc)
+        task.spawn(function()
+            -- wait for HumanoidRootPart
+            local hrp = npc:WaitForChild("HumanoidRootPart", 5)
+            if not hrp then return end
+    
+            -- wait for infoFrame hierarchy
+            local infoFrame = hrp:WaitForChild("infoFrame", 5)
+            if not infoFrame then return end
+            local frame = infoFrame:WaitForChild("Frame", 5)
+            if not frame then return end
+            local rockNameLabel = frame:WaitForChild("rockName", 5)
+            if not rockNameLabel or not rockNameLabel:IsA("TextLabel") then return end
+    
+            local mobNameText = rockNameLabel.Text
+            local isSlime = string.find(mobNameText, "Slime")
+    
+            if isSlime then
+                -- wait for Status folder
+                local status = npc:WaitForChild("Status", 5)
+                if not status then return end
+    
+                status.ChildAdded:Connect(function(child)
+                    if child:IsA("BoolValue") and child.Name == "Attacking" then
+                        if hrp and distance_check(hrp) and getgenv().auto_parry then
+                            task.delay(slimeDelay + math.random(-3,3)/100, function()
+                                if npc.Parent and npc:FindFirstChild("Humanoid") then
+                                    if auto_parry_debug then
+                                        Library:Notify("[Auto Parry Debug] Slime parried after "..string.format("%.3f", slimeDelay).." seconds", 2)
+                                    end
+                                    blockRemote:InvokeServer()
+                                    task.wait(0.25)
+                                    stopBlockRemote:InvokeServer()
+                                end
+                            end)
+                        end
                     end
+                end)
+            else
+                local hum = npc:FindFirstChild("Humanoid") or npc:WaitForChild("Humanoid", 5)
+                if hum then
+                    hum.AnimationPlayed:Connect(function(track)
+                        if track.Animation then
+                            local animId = track.Animation.AnimationId
+                            if parryAnimations[animId] then
+                                parry(npc, animId)
+                            end
+                        end
+                    end)
                 end
-            end)
-        end
+            end
+        end)
     end
 end
 
@@ -149,15 +219,15 @@ local minigame = minigtab:AddTab(" \\\\ Forge Minigame Exploits //")
 
 --farm settings
 farmSet:AddDropdown('FarmMethod', {
-    Values = { 'Above/Below', 'Front/Behind' },
+    Values = { 'Above', 'Below' },
     Default = 1, -- number index of the value / string
     Multi = false, -- true / false, allows multiple choices to be selected
 
     Text = 'Select Farm Method: ',
     Tooltip = nil, -- Information shown when you hover over the dropdown
 
-    Callback = function(Value)
-        getgenv().FarmMethod = Value
+    Callback = function(t)
+        flags.farmmethod = t
     end
 })
 farmSet:AddSlider('DistanceSlider', {
@@ -169,13 +239,13 @@ farmSet:AddSlider('DistanceSlider', {
     Compact = false,
 
     Callback = function(Value)
-        getgenv().farm_distance = Value
+        flags.distance = Value
     end
 })
 
 --ore farm tab
 orefarm:AddDropdown('OreDropdown', {
-    Values = { 'All', 'Basalt Rock', 'Basalt Core', 'Basalt Vein', 'Volcanic Rock', 'Light Crystal', 'Earth Crystal', 'Violet Crystal', 'Crimson Crystal', 'Cyan Crystal'},
+    Values = {'Basalt Rock', 'Basalt Core', 'Basalt Vein', 'Volcanic Rock', 'Light Crystal', 'Earth Crystal', 'Violet Crystal', 'Crimson Crystal', 'Cyan Crystal'},
     Default = 1, -- number index of the value / string
     Multi = true, -- true / false, allows multiple choices to be selected
 
@@ -183,7 +253,7 @@ orefarm:AddDropdown('OreDropdown', {
     Tooltip = nil, -- Information shown when you hover over the dropdown
 
     Callback = function(Value)
-        getgenv().ore_selected = Value
+        flags.ore_selected = Value
     end
 })
 orefarm:AddToggle('AutoFarmOres', {
@@ -191,21 +261,21 @@ orefarm:AddToggle('AutoFarmOres', {
     Default = false,
 
     Callback = function(t)
-        getgenv().auto_ore = t
+        flags.autoore = t
     end
 })
 
 --mob farm tab
 mobfarm:AddDropdown('OreDropdown', {
-    Values = { 'All', 'Reaper', 'Bomber', 'Deathaxe Skeleton', 'Slime', 'Skeleton Rogue', 'Axe Skeleton', 'Elite Deathaxe Skeleton', 'Elite Rogue Skeleton', 'Blazing Slime'},
+    Values = {'Reaper', 'Bomber', 'Deathaxe Skeleton', 'Slime', 'Skeleton Rogue', 'Axe Skeleton', 'Elite Deathaxe Skeleton', 'Elite Rogue Skeleton', 'Blazing Slime'},
     Default = 1, -- number index of the value / string
     Multi = true, -- true / false, allows multiple choices to be selected
 
     Text = 'Select Mob Type: ',
     Tooltip = nil, -- Information shown when you hover over the dropdown
 
-    Callback = function(Value)
-        getgenv().mob_selected = Value
+    Callback = function(t)
+        flags.mob_selected = t
     end
 })
 mobfarm:AddToggle('AutoFarmOres', {
@@ -214,7 +284,24 @@ mobfarm:AddToggle('AutoFarmOres', {
     Tooltip = nil, -- Information shown when you hover over the toggle
 
     Callback = function(t)
-        getgenv().auto_farm = t
+        flags.auto_farm = t
+
+        task.spawn(function()
+            while flags.auto_farm do task.wait()
+                for i,v in pairs(workspace.Living:GetChildren()) do
+                    if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
+                        if v:GetAttribute("IsNpc") and v.HumanoidRootPart.infoFrame.Frame.rockName.Text then
+                            local mobName = v.HumanoidRootPart.infoFrame.Frame.rockName.Text
+                            if flags.mob_selected[mobName] then
+                                repeat task.wait()
+                                    tweenToFARM(v:FindFirstChild("HumanoidRootPart"))
+                                until v.Humanoid.Health <= 0 or not flags.auto_farm
+                            end
+                        end
+                    end
+                end
+            end
+        end)
     end
 })
 
@@ -240,46 +327,48 @@ AP:AddToggle('AutoParryDebugToggle', {
 
 
 --AutoParry Builder Tab
-APBuilder:AddInput('APBuilderAnimationdID', {
-    Default = nil,
-    Numeric = false,
-    Finished = false,
-    Text = 'Enter Animation ID: ',
-    Tooltip = nil,
 
-    Placeholder = 'Enter Animation ID',
 
-    Callback = function(Value)
-        getgenv().animation_id_tracking = Value
-    end
-})
-APBuilder:AddToggle('APBuilderToggle', {
-    Text = 'Track Animation Timing',
-    Default = false, -- Default value (true / false)
-    Tooltip = nil, -- Information shown when you hover over the toggle
-
-    Callback = function(t)
-        getgenv().tracking_time = t
-    end
-})
-
+-- Connect existing NPCs
+-- Connect existing NPCs
 for _, enemy in ipairs(workspace:WaitForChild("Living"):GetChildren()) do
     if enemy:IsA("Model") and enemy:GetAttribute("IsNpc") then
-        connect_parry(enemy)
+        safe_connect_parry(enemy)
     end
 end
+
+-- Connect newly spawned NPCs
 workspace.Living.ChildAdded:Connect(function(enemy)
     if enemy:IsA("Model") and enemy:GetAttribute("IsNpc") then
-        connect_parry(enemy)
+        safe_connect_parry(enemy)
     end
 end)
 
 
-game.Workspace.Rocks.DescendantAdded:Connect(function(obj)
-    if obj.Name == getgenv().ore then
-        local hitbox = obj.Parent:FindFirstChild("Hitbox")
-        if hitbox then
-            table.insert(OreList, hitbox)
+
+task.spawn(function()
+    while task.wait() do
+        if getgenv().auto_farm or getgenv().auto_ore then
+            if not lp.Character:WaitForChild("HumanoidRootPart"):FindFirstChild("BodyVelocity") then
+                local bv = Instance.new("BodyVelocity")
+                bv.Parent = lp.Character:WaitForChild("HumanoidRootPart")
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                bv.Velocity = Vector3.new(0, 0, 0)
+            end
+            for _, v in pairs(lp.Character:GetDescendants()) do
+                if v:IsA("BasePart") and v.CanCollide then
+                    v.CanCollide = false
+                end
+            end
+        else
+            if lp.Character:WaitForChild("HumanoidRootPart"):FindFirstChild("BodyVelocity") then
+                lp.Character:WaitForChild("HumanoidRootPart"):FindFirstChild("BodyVelocity"):Destroy()
+            end
+            for _, v in pairs(lp.Character:GetDescendants()) do
+                if v:IsA("BasePart") and v.CanCollide then
+                    v.CanCollide = true
+                end
+            end
         end
     end
 end)
