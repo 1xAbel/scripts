@@ -1,3 +1,22 @@
+-- The song must be placed in _G.MatchaPianoSong by the loader.
+local Song = _G.MatchaPianoSong
+_G.MatchaPianoSong = nil
+
+if type(Song) ~= "string" or #Song == 0 then
+    pcall(function()
+        notify(
+            "No song data was received. Use the matching song loader.",
+            "Piano Player Error",
+            8
+        )
+    end)
+
+    warn("Piano player received no song data.")
+    return
+end
+
+print(("Received song data: %d characters"):format(#Song))
+
 -- Re-executing the script safely shuts down the previous copy.
 if _G.MatchaPianoCleanup then
     pcall(_G.MatchaPianoCleanup)
@@ -274,6 +293,21 @@ FinishLine()
 if HasExplicitBars and CurrentExplicitBarSize > 0 then
     ExplicitBarSizes[#ExplicitBarSizes + 1] = CurrentExplicitBarSize
 end
+
+if #Slots == 0 then
+    pcall(function()
+        notify(
+            "The sheet was received, but no playable notes or rests were parsed.",
+            "Piano Player Error",
+            8
+        )
+    end)
+
+    warn("Parser created 0 timing slots.")
+    return
+end
+
+print(("Parsed %d timing slots"):format(#Slots))
 
 --------------------------------------------------
 -- Safe timing detection
