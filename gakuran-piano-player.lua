@@ -203,33 +203,73 @@ local SongText = Song
 
 if type(SongText) ~= "string" then
     SongText = ""
-    warn("Song was not a string, so an empty sheet was loaded.")
+    print("Song was not a string, so an empty sheet was loaded.")
 end
 
-local NormalizedSong = string.gsub(
-    string.gsub(SongText, "\r\n", "\n"),
-    "\r",
-    "\n"
-)
+-- Matcha may not expose the global string table, so this parser avoids
+-- string.gsub completely and reads the sheet one character at a time.
+local function ProcessRawToken(rawToken)
+    local characters = {}
+    local barCount = 0
 
-for line in (NormalizedSong .. "\n"):gmatch("(.-)\n") do
-    local lineSize = 0
+    for i = 1, #rawToken do
+        local character = rawToken:sub(i, i)
 
-    for rawToken in line:gmatch("%S+") do
-        local _, barCount = string.gsub(rawToken, "|", "")
-        local token = string.gsub(rawToken, "|", "")
-
-        lineSize = lineSize + AddToken(token)
-
-        for _ = 1, barCount do
-            FinishExplicitBar()
+        if character == "|" then
+            barCount = barCount + 1
+        else
+            characters[#characters + 1] = character
         end
     end
 
-    if lineSize > 0 then
-        LineSizes[#LineSizes + 1] = lineSize
+    local token = table.concat(characters)
+    local added = AddToken(token)
+
+    for _ = 1, barCount do
+        FinishExplicitBar()
+    end
+
+    return added
+end
+
+local currentToken = {}
+local currentLineSize = 0
+
+local function FinishToken()
+    if #currentToken == 0 then
+        return
+    end
+
+    local rawToken = table.concat(currentToken)
+    currentToken = {}
+    currentLineSize = currentLineSize + ProcessRawToken(rawToken)
+end
+
+local function FinishLine()
+    FinishToken()
+
+    if currentLineSize > 0 then
+        LineSizes[#LineSizes + 1] = currentLineSize
+    end
+
+    currentLineSize = 0
+end
+
+for i = 1, #SongText do
+    local character = SongText:sub(i, i)
+
+    if character == " " or character == "\t" then
+        FinishToken()
+    elseif character == "\n" then
+        FinishLine()
+    elseif character == "\r" then
+        -- Ignore CR. The following LF, when present, ends the line.
+    else
+        currentToken[#currentToken + 1] = character
     end
 end
+
+FinishLine()
 
 if HasExplicitBars and CurrentExplicitBarSize > 0 then
     ExplicitBarSizes[#ExplicitBarSizes + 1] = CurrentExplicitBarSize
